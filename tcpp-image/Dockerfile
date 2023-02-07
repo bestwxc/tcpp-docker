@@ -8,10 +8,10 @@ ARG LIBBOOST_VER=1.71.0
 # update and common dependencies
 RUN set -eux \
     && bash /wxc/apt/sm \
-    && apt upgrade \
-    && apt-get install -y --no-install-recommends \
+    && apt upgrade -y \
+    && DEBIAN_FRONTEND=noninteractive apt-get install --no-install-recommends -y \
             iputils-ping telnet \
-            libmysqlclient21 libreadline8 \
+            libmysqlclient21 libreadline8 mysql-client \
             libboost-system$LIBBOOST_VER libboost-filesystem$LIBBOOST_VER libboost-thread$LIBBOOST_VER \
             libboost-atomic$LIBBOOST_VER libboost-program-options$LIBBOOST_VER libboost-iostreams$LIBBOOST_VER \
     && bash /wxc/apt/usm -r
@@ -24,7 +24,7 @@ ARG LIBBOOST_VER=1.71.0
 # update and common dependencies
 RUN set -eux \
     && bash /wxc/apt/sm \
-    && apt upgrade \
+    && apt upgrade -y \
     && apt-get install -y --no-install-recommends \
             iputils-ping telnet \
             libmysqlclient21 libreadline8 mysql-client \
@@ -32,7 +32,7 @@ RUN set -eux \
             libboost-atomic$LIBBOOST_VER libboost-program-options$LIBBOOST_VER libboost-iostreams$LIBBOOST_VER \
     && bash /wxc/apt/usm -r
 
-## builder
+## builder for 20.04 
 FROM common-without-maps as builder
 ARG USER_NAME=trinity
 ARG USER_ID=2000
@@ -57,6 +57,11 @@ ENV GIT_SSL_NO_VERIFY=1
 RUN git clone https://github.com/The-Cataclysm-Preservation-Project/TrinityCore.git trinity --depth=1
 
 
+ARG TDB_VER=TDB_full_434.22011_2022_01_09
+RUN wget --no-check-certificate https://github.com/The-Cataclysm-Preservation-Project/TrinityCore/releases/download/TDB434.22011/$TDB_VER.7z \
+      && p7zip -d $TDB_VER.7z \
+      && rm -rf $TDB_VER.7z
+
 WORKDIR /home/$USER_NAME/trinity
 RUN mkdir build && cd build \
   && cmake ../ -DCMAKE_INSTALL_PREFIX=~/server \
@@ -64,7 +69,7 @@ RUN mkdir build && cd build \
 RUN cd build && make -j 6 && make install
 
 
-## builder
+## builder for 22.04 but build fail. 
 FROM common-without-maps as builder_bak
 ARG USER_NAME=trinity
 ARG USER_ID=2000
@@ -132,6 +137,7 @@ FROM common-with-maps as all-with-maps
 ARG USER_NAME=trinity
 ARG USER_ID=2000
 ARG GROUP_ID=2000
+COPY --from=builder --chown=$USER_ID:$GROUP_ID /home/$USER_NAME/*.sql /home/$USER_NAME
 COPY --from=builder --chown=$USER_ID:$GROUP_ID /home/$USER_NAME/server /home/$USER_NAME/server
 #COPY --from=builder --chown=$USER_ID:$GROUP_ID /home/$USER_NAME/openssl /home/$USER_NAME/openssl
 COPY --from=builder --chown=$USER_ID:$GROUP_ID /home/$USER_NAME/trinity/sql /home/$USER_NAME/trinity/sql
@@ -153,6 +159,7 @@ FROM common-without-maps as all-without-maps
 ARG USER_NAME=trinity
 ARG USER_ID=2000
 ARG GROUP_ID=2000
+COPY --from=builder --chown=$USER_ID:$GROUP_ID /home/$USER_NAME/*.sql /home/$USER_NAME
 COPY --from=builder --chown=$USER_ID:$GROUP_ID /home/$USER_NAME/server /home/$USER_NAME/server
 #COPY --from=builder --chown=$USER_ID:$GROUP_ID /home/$USER_NAME/openssl /home/$USER_NAME/openssl
 COPY --from=builder --chown=$USER_ID:$GROUP_ID /home/$USER_NAME/trinity/sql /home/$USER_NAME/trinity/sql
