@@ -43,9 +43,8 @@ services:
     tty: true
     volumes:
       - ./db-import:/db-import
-#    command:
-#      - "/bin/bash"
-#      - "/db-import/import.sh"
+#    command: "/db-import/import.sh"
+    command: "sh /db-import/db-import.sh"
 #    entrypoint: "tail -f /etc/profile"
   tcpp-bnetserver:
     <<: *tcpp-shared-conf
@@ -62,7 +61,6 @@ services:
       - 1119
     ports:
       - ${CMANGOS_REALMD_PORT:-3724}:3724
-      - ${CMANGOS_REALMD_PORT2:-1118}:1118
       - ${CMANGOS_REALMD_PORT2:-1119}:1119
     volumes:
       - ./logs:/home/trinity/server/logs
@@ -94,8 +92,6 @@ services:
     volumes:
       - ./logs:/home/trinity/server/logs
       - ./etc:/home/trinity/server/etc
-      - ./db-import/TDB_full_hotfixes_434.22011_2022_01_09.sql:/home/trinity/TDB_full_hotfixes_434.22011_2022_01_09.sql
-      - ./db-import/TDB_full_world_434.22011_2022_01_09.sql:/home/trinity/TDB_full_world_434.22011_2022_01_09.sql
       # mount the map files when you want to use yours.
       #- ./${WOW_VER:-tbc}/data:/home/cmangos/cmangos-server/data
 
