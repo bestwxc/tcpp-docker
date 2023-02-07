@@ -1,0 +1,108 @@
+version: "3.9"
+
+x-networks: &networks
+  networks:
+    - tcpp-network
+
+x-tcpp-shared-conf: &tcpp-shared-conf
+  <<: *networks
+  depends_on:
+    tcpp-database:
+      condition: service_healthy
+#    tcpp-db-import:
+#      condition: service_completed_successfully
+
+services:
+  tcpp-database:
+    <<: *networks
+    image: mysql:8.0
+    restart: unless-stopped
+    cap_add:
+      - SYS_NICE  # CAP_SYS_NICE
+    expose:
+      - 3306
+    ports:
+      - ${DOCKER_DB_EXTERNAL_PORT:-23306}:3306
+    environment:
+      - MYSQL_ROOT_PASSWORD=${DOCKER_DB_ROOT_PASSWORD:-123456}
+    volumes:
+      - type: volume
+        source: tcpp-db
+        target: /var/lib/mysql
+    healthcheck:
+      test: "/usr/bin/mysql --user=root --password=$$MYSQL_ROOT_PASSWORD --execute \"SHOW DATABASES;\""
+      interval: 2s
+      timeout: 40s
+      retries: 20
+  tcpp-db-import:
+    <<: *networks
+    depends_on:
+      tcpp-database:
+        condition: service_healthy
+    image: wxc252/tcpp:20230207-20.04-all-with-maps
+    tty: true
+    volumes:
+      - ./db-import:/db-import
+#    command:
+#      - "/bin/bash"
+#      - "/db-import/import.sh"
+#    entrypoint: "tail -f /etc/profile"
+  tcpp-bnetserver:
+    <<: *tcpp-shared-conf
+    #profiles:
+    #- dev
+    image: wxc252/tcpp:20230207-20.04-all-with-maps
+    working_dir: /home/trinity
+    entrypoint: "./server/bin/bnetserver"
+    restart: unless-stopped
+    user: trinity
+    expose:
+      - 3724
+      - 1118
+      - 1119
+    ports:
+      - ${CMANGOS_REALMD_PORT:-3724}:3724
+      - ${CMANGOS_REALMD_PORT2:-1118}:1118
+      - ${CMANGOS_REALMD_PORT2:-1119}:1119
+    volumes:
+      - ./logs:/home/trinity/server/logs
+      - ./etc:/home/trinity/server/etc
+  tcpp-worldserver:
+    <<: *tcpp-shared-conf
+      #profiles:
+    #- dev
+    image: wxc252/tcpp:20230207-20.04-all-with-maps
+    working_dir: /home/trinity
+    entrypoint: "./server/bin/worldserver"
+    # use when you want to use yours.
+    # image: wxc252/cmangos-without-maps-${WOW_VER:-tbc}:${CMANGOS_IMAGE_VER:-20230205}
+    restart: unless-stopped
+    tty: true
+    stdin_open: true
+    cap_add:
+      - SYS_NICE
+    privileged: true
+    user: trinity
+    expose:
+      - 8085
+      - 3443
+      - 7878
+    ports:
+      - ${CMANGOS_MANGOSD_PORT:-8085}:8085
+      - ${CMANGOS_MANGOSD_REMOTE_CONSOLE_PORT:-3443}:3443
+      - ${CMANGOS_MANGOSD_SOAP_PORT:-7878}:7878
+    volumes:
+      - ./logs:/home/trinity/server/logs
+      - ./etc:/home/trinity/server/etc
+      - ./db-import/TDB_full_hotfixes_434.22011_2022_01_09.sql:/home/trinity/TDB_full_hotfixes_434.22011_2022_01_09.sql
+      - ./db-import/TDB_full_world_434.22011_2022_01_09.sql:/home/trinity/TDB_full_world_434.22011_2022_01_09.sql
+      # mount the map files when you want to use yours.
+      #- ./${WOW_VER:-tbc}/data:/home/cmangos/cmangos-server/data
+
+volumes:
+  tcpp-db:
+
+networks:
+  tcpp-network:
+
+
